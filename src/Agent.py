@@ -13,6 +13,9 @@ class Agent:
         self.persona: str = persona
         self.brain: Brain = brain
 
+
     def notice(self, text: str):
         self.brain.notice(text)
+    def talk(self, text: str):
+        return  self.brain.talk(text)
 

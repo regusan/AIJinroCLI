@@ -7,3 +7,7 @@ class Brain(ABC):
     @abstractmethod
     def notice(self, text: str):
         pass
+
+    @abstractmethod
+    def talk(self, text: str) -> str:
+        pass

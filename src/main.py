@@ -1,6 +1,6 @@
 from GameMaster import GameMaster
 from Role import Role
-
+import random
 def main():
     """
     ゲームのメイン実行関数
@@ -11,6 +11,7 @@ def main():
         Role(name="市民", prompt="あなたは市民です。人狼を見つけ出し、追放してください。"),
         Role(name="市民", prompt="あなたは市民です。人狼を見つけ出し、追放してください。")
     ]
+    random.shuffle(roles)
     gm = GameMaster(roles=roles)
     gm.begin()
     gm.gameloop()
