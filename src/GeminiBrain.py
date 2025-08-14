@@ -10,15 +10,16 @@ class GeminiBrain(Brain):
     GeminiBrainのGemini実装
     """
     models = ["gemini-2.5-flash-lite","gemini-1.5-flash-8b","gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite"]
-    def __init__(self, modelVirsion = "gemini-2.5-pro", thinking_budget=-1):
+    def __init__(self, systemInstruction = "", modelVirsion = "gemini-2.5-flash-lite", thinking_budget=-1):
         """
         コンストラクタ
         APIキーの取得とモデルの初期化を行う
         """
         self.console = Console()
-        self.context: str = ""
-        self.modelVersion = modelVirsion
+        self.modelVirsion = modelVirsion
         self.thinking_budget = thinking_budget
+        self.noticedContext = ""
+        
         
         # GEMINI_API_KEYが設定されていない場合はエラーを送出
         if "GEMINI_API_KEY" not in os.environ:
@@ -26,37 +27,37 @@ class GeminiBrain(Brain):
         
         #genai.configure(api_key=os.environ["GEMINI_API_KEY"])
         #self.model = genai.GenerativeModel(model, config=types.GenerateContentConfig(thinking_config=z.ThinkingConfig(thinking_budget=0)))
-        self.model = genai.Client()
+        self.model = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        self.config = types.GenerateContentConfig(system_instruction=systemInstruction) 
+        self.chat = self.model.chats.create(model=self.modelVirsion, config=self.config)
     def talk(self, text: str) -> str:
         """
         会話を行い、コンテキストを更新する
         """
-        self.context += f"\n[User]: {text}"
-        response = self.model.models.generate_content(
-            model=self.modelVersion,
-            contents=self.context,
-            config=types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_budget=self.thinking_budget)
-            ),
-        )
-        self.context += f"\n[AI]: {response.text}"
-        return response.text
+        return self.chat.send_message(f"{self.noticedContext}\n{text}").text
 
     def notice(self, text: str):
         """
         通知を受け取り、コンテキストに追加する
         """
-        #self.console.print(f"[dim]通知({id(self)}): {text}[/dim]")
-        self.context += f"\n[Notice]: {text}"
+        self.noticedContext += f"\n[Notice]: {text}"
+        
+        #part = types.Part(text=text)
+        #content = types.Content(parts=[part], role="user")
+        #content=content.construct(set(text))
+        #self.chat.record_history(content, self.chat.get_history(),[],True )
+        #self.talk(f"このメッセージは通知のみ行います。返信はしないでください。\n{text}")
+        
     def select(self, text: str, options: list[str]) -> str:
         """
         選択肢から一つを選び、コンテキストを更新する
         """
+        history=self.chat.get_history()
         options_str = "/".join(options)
-        self.context += f"\n[User]: {text}\n選択肢: {options_str}"
+        context = f"{self.chat.get_history()}\n{self.noticedContext}\n[User]: {text}\n選択肢: {options_str}"
         response = self.model.models.generate_content(
-            model=self.modelVersion,
-            contents=self.context,
+            model=self.modelVirsion,
+            contents=context,
             config={
                 'response_mime_type': 'text/x.enum',
                 'response_schema': {
@@ -67,9 +68,7 @@ class GeminiBrain(Brain):
         )
         selected_option = response.text.strip()
         if selected_option not in options:
-            # モデルが選択肢にないものを返した場合、最初の選択肢をデフォルトとする
             selected_option = None
-        self.context += f"\n[AI]: {selected_option}"
         return selected_option
         
 
@@ -77,18 +76,19 @@ if __name__ == "__main__":
     # 実行例
     # このスクリプトを実行する前に、環境変数にGEMINI_API_KEYを設定してください
     # export GEMINI_API_KEY="YOUR_API_KEY"
-    try:
-        brain = GeminiBrain()
-        brain.notice("[ゲームマスター]あなたは人狼ゲームの参加者の'Agent1'です。あなたの役職は人狼です。")
-        brain.notice("[ゲームマスター]4人の参加者(Agent1,2,3,4)のうち、この中に人狼は1人います。")
-        brain.notice("[ゲームマスター]1日目の夜になりました。")
-        start = time.time()
-        response = brain.talk("[ゲームマスター]今夜のターゲットを教えてください。")
-        elapsed= time.time()-start
-        print(f"AIの応答 {elapsed:.2f}s: {response}")
-        start = time.time()
-        response2 = brain.talk("考察を教えてください")
-        elapsed= time.time()-start
-        print(f"AIの応答 {elapsed:.2f}s: {response2}")
-    except ValueError as e:
-        print(f"エラー: {e}")
+
+    brain = GeminiBrain()
+    brain.notice("[ゲームマスター]あなたは人狼ゲームの参加者の'Agent1'です。あなたの役職は人狼です。")
+    brain.notice("[ゲームマスター]4人の参加者(Agent1,2,3,4)のうち、この中に人狼は1人います。")
+    brain.notice("[ゲームマスター]1日目の夜になりました。")
+    start = time.time()
+    response = brain.talk("[ゲームマスター]今夜のターゲットを教えてください。")
+    elapsed= time.time()-start
+    print(f"AIの応答 {elapsed:.2f}s: {response}")
+    start = time.time()
+    response2 = brain.talk("考察を教えてください")
+    elapsed= time.time()-start
+    print(f"AIの応答 {elapsed:.2f}s: {response2}")
+    history = brain.chat.get_history()
+    for message in history:
+        print(message)
