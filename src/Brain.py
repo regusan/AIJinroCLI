@@ -11,3 +11,7 @@ class Brain(ABC):
     @abstractmethod
     def talk(self, text: str) -> str:
         pass
+    @abstractmethod
+    def select(self, text: str, options: list[str]) -> str:
+        pass
+        

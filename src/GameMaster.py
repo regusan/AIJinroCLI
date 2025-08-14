@@ -15,21 +15,29 @@ gameRule = """
 - 人狼陣営と市民陣営に分かれ、各陣営の勝利を目指す。
 - 人狼陣営の勝利条件は、市民陣営のと人狼陣営を同数いかにすること。
 - 市民陣営の勝利条件は、人狼陣営を全滅させること。
+- 処刑・襲撃されると、以降の議論では何も発言できなくなり、行動もできなくなり、投票権も失う。
+- エージェントは役職を騙ることも可能です。
 
 # 投票ルール
 - 一人1票投票できる。
 - 最も投票数の多い人は処刑される。同数ならだれも処刑されない。
-- 処刑されると、以降の議論では何も発言できなくなり、行動もできなくなり、投票権も失う。
 
 # 役職
 ## 市民
 - 市民陣営
+
 ## 占い師
 - 市民陣営
-- 毎晩、一人のプレイヤーの役職を知ることができる。占い結果は本人が直接他の人に伝えることで伝えられる。ゲームマスターは直接通知しない。
+- 毎晩、一人のプレイヤーの役職を知ることができる。
+- 占い結果は、非公開情報であるため、会議の際に占い師が直接伝える必要がある。
+- 夜の行動による集計対象情報:無し
+
 ## 人狼
 - 人狼陣営
-- 毎晩、一人市民を襲撃できる。
+- 毎晩、一人市民を襲撃できる。襲撃する場合は名前を明示してください。
+- 襲撃者は非公開情報。
+- 誰が襲撃されたかは公開情報
+- 夜の行動による集計対象情報:被害者名
 
 """
 
@@ -43,6 +51,7 @@ class GameMaster:
         """
         self.brain: Brain = GeminiBrain()
         self.agents: list[Agent] = []
+        self.livingAgents: list[Agent] = []
         self.roles: list[Role] = roles
         self.publicGameState: list[str] =[]
         self.privateGameState: list[str] =[]
@@ -54,6 +63,8 @@ class GameMaster:
 あなたは人狼ゲームのゲームマスターです。
 あなたの仕事は、各エージェント(プレイヤー)の応答を記録し、ゲームの状態を更新することです。
 ゲームの状態はあなたのコンテキストによって管理されます。
+また、あなたの発言がほかの全エージェントにそのまま伝えられる場合があります。
+その際は[公開情報]を付けるため、全エージェントが知っても問題ない情報に絞って発言してください。
 """
         self.brain.notice(startupMSG)
         self.brain.notice(f"ゲームルール: {gameRule}")
@@ -65,6 +76,7 @@ class GameMaster:
         self.console.print(Panel("[bold cyan]AI人狼ゲームへようこそ！[/bold cyan]", title="ゲーム開始"))
 
         self.agents = [Agent(f"エージェント{i+1}", GeminiBrain()) for i in range(len(self.roles))]
+        self.livingAgents =self.agents
 
         for i, agent in enumerate(self.agents):
             agent.role = self.roles[i].name
@@ -102,26 +114,27 @@ f"ただいまより人狼ゲームを開始します。あなたの名前は、
         self.console.print(Panel("[bold magenta]ゲームループ開始[/bold magenta]"))
         day = 1
         while not self._check_game_end():
-            self.console.print(Panel(f"[bold]====== {day}日目 ======[/bold]", expand=False))
+            self.console.print(Panel(f"[cyan]====== {day}日目 ======[/cyan]", expand=False))
 
             # --- 夜のターン ---
             self.console.print(Panel("[bold blue]夜が来ました。各役職は行動してください。[/bold blue]", title=f"{day}日目 - 夜"))
             # TODO: 各役職の行動を実装
-            for agent in self.agents:
-                self.console.print(f"  [bold]{agent.name}[/bold] (役職: {agent.role}) が行動中...")
-                tmp = agent.talk("[ゲームマスター]あなたの役職に基づいた最適な行動を推測してください")
-                self.console.print(f"    [dim]{agent.name}の応答:[/dim] " +  tmp)
-                action = agent.talk("[ゲームマスター]行動を簡潔に述べてください。")
-                self.console.print(f"    [dim]{agent.name}の応答:[/dim] " +  action)
-                actionresult = self.brain.talk(f"夜の行動: {agent.name}が「{action}」と行動しました。もし、結果がある行動(例：占いの結果)なら通知してください。なければ何も応答しないで。")
-                agent.notice("結果のある行動の場合は結果が入ります。:"+actionresult)
+            for agent in self.livingAgents:
+                with self.console.status(f"{agent}が行動中...") as status:
+                    tmp = agent.talk("[ゲームマスター]あなたの役職に基づいた最適な行動を推測してください")
+                    action = agent.talk("[ゲームマスター]行動を簡潔に述べてください。")
+                    actionresult = self.brain.talk(f"夜の行動: {agent.name}が「{action}」と行動しました。もし、結果がある行動(例：占いの結果)なら通知してください。なければ何も応答しないで。")
+                    agent.notice("結果のある行動の場合は結果が入ります。:"+str(actionresult))
+                
+                self.console.print(Panel(f"思考: {tmp}\n行動: {action}\n結果: {actionresult}", title=f"{agent}", style="bold blue"))
 
 
             self.console.print("夜の行動が終了しました。")
 
             # 夜の行動結果を通知
             # TODO: 実際の襲撃結果などを反映させる
-            lastNightExplain = self.brain.talk("集計した昨晩の行動による結果を簡潔に教えてください。")
+            with self.console.status("夜の行動結果を集計中...") as status:
+                lastNightExplain = self.brain.talk("[公開情報]集計した昨晩の行動による結果を簡潔に教えてください。公開する情報は、夜の行動による集計対象情報です。")
             notification = lastNightExplain
             self.publicGameState += f"\n{day}日目夜: {notification}"
             self.console.print(Panel(self.publicGameState, title="公開情報"))
@@ -137,14 +150,22 @@ f"ただいまより人狼ゲームを開始します。あなたの名前は、
 
             # --- 投票 ---
             self.console.print(Panel("[bold red]追放投票の時間です。[/bold red]", title=f"{day}日目 - 投票"))
-            voteResult = ""
-            for agent in self.agents:
-                voteResult+=f"{agent.name}:{agent.talk("[ゲームマスター]だれに投票するか教えてください。無投票も可能です。名前のみ述べてください。それ以外は出力しないで。")}\n"
+            #voteResult = ""
+            votedList = []
+            for agent in self.livingAgents:
+                with self.console.status(f"{agent}が投票中...") as status:
+                    votedList.append(agent.select(
+                        text="誰に投票しますか？",
+                        options=[a.name for a in self.livingAgents]
+                    ))
+                #voteResult+=f"{agent.name}:{agent.talk("[ゲームマスター]だれに投票するか教えてください。無投票も可能です。名前のみ述べてください。それ以外は出力しないで。")}"
             
             self.console.print("投票が終了しました。")
-            self.brain.talk(f"誰が追放されるか教えて。投票結果{voteResult}から、最も投票数の多い人を選んでください。もし同数なら無効投票とします。")
+            #最も投票数の多いエージェントを抽出
+            voteResult = max(set(votedList), key=votedList.count)
+            #self.brain.talk(f"誰が追放されるか教えて。投票結果{voteResult}から、最も投票数の多い人を選んでください。もし同数なら無効投票とします。")
             
-            self.noticeBCast(f"投票結果:\n{voteResult}", self.agents)
+            self.noticeBCast(f"投票結果:\n{voteResult}は追放されました" if voteResult != None else f"投票結果は無効でした。", self.agents)
             self.console.print(Panel(voteResult, title="投票結果"))
             if self._check_game_end(): break
             
@@ -162,11 +183,6 @@ f"ただいまより人狼ゲームを開始します。あなたの名前は、
         self.console.print("感想戦を開始します。")
         # TODO: 感想戦(conversation)を実装
 
-        # デバッグ用にエージェント0の最終コンテキストを表示
-        if self.agents:
-            final_context = self.agents[0].brain.context
-            self.console.print(Panel(final_context, title=f"{self.agents[0].name}の最終コンテキスト", style="bold yellow"))
-
 
     def conversation(self, talktheme: str, agents: list[Agent], loopcount: int) -> str:
         """
@@ -181,8 +197,9 @@ f"ただいまより人狼ゲームを開始します。あなたの名前は、
             self.console.print(header)
             conversation_log += header + "\n"
             for agent in agents:
-                response =agent.talk(conversation_log)
-                self.console.print(f"[cyan]{agent.name}:[/cyan] {response}")
+                with self.console.status(f"{agent}が発言中...") as status:
+                    response =agent.talk(conversation_log)
+                self.console.print(f"{agent}:\n {response}")
                 conversation_log += f"{agent.name}: {response}\n"
 
         self.console.print(Panel("会話終了", style="bold green"))
@@ -200,5 +217,6 @@ f"ただいまより人狼ゲームを開始します。あなたの名前は、
         """
         ゲームの終了条件を確認する
         """
-        endTxt = self.brain.talk("現状で、ゲームの終了条件に合致しますか？合致するなら、'終了'、しないなら'継続'を出力してください。プログラムで処理するため、それ以外は何も出力しないで。")
+        with self.console.status("ゲームの終了条件を確認中...") as status:
+            endTxt = self.brain.talk("現状で、ゲームの終了条件に合致しますか？合致するなら、'終了'、しないなら'継続'を出力してください。プログラムで処理するため、それ以外は何も出力しないで。")
         return endTxt == "終了"

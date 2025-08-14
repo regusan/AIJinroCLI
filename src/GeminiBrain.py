@@ -9,7 +9,8 @@ class GeminiBrain(Brain):
     """
     GeminiBrainのGemini実装
     """
-    def __init__(self, modelVirsion = "gemini-2.5-flash-lite"):
+    models = ["gemini-2.5-flash-lite","gemini-1.5-flash-8b","gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite"]
+    def __init__(self, modelVirsion = "gemini-2.5-pro", thinking_budget=-1):
         """
         コンストラクタ
         APIキーの取得とモデルの初期化を行う
@@ -17,6 +18,7 @@ class GeminiBrain(Brain):
         self.console = Console()
         self.context: str = ""
         self.modelVersion = modelVirsion
+        self.thinking_budget = thinking_budget
         
         # GEMINI_API_KEYが設定されていない場合はエラーを送出
         if "GEMINI_API_KEY" not in os.environ:
@@ -34,7 +36,7 @@ class GeminiBrain(Brain):
             model=self.modelVersion,
             contents=self.context,
             config=types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_budget=0)
+                thinking_config=types.ThinkingConfig(thinking_budget=self.thinking_budget)
             ),
         )
         self.context += f"\n[AI]: {response.text}"
@@ -46,6 +48,30 @@ class GeminiBrain(Brain):
         """
         #self.console.print(f"[dim]通知({id(self)}): {text}[/dim]")
         self.context += f"\n[Notice]: {text}"
+    def select(self, text: str, options: list[str]) -> str:
+        """
+        選択肢から一つを選び、コンテキストを更新する
+        """
+        options_str = "/".join(options)
+        self.context += f"\n[User]: {text}\n選択肢: {options_str}"
+        response = self.model.models.generate_content(
+            model=self.modelVersion,
+            contents=self.context,
+            config={
+                'response_mime_type': 'text/x.enum',
+                'response_schema': {
+                    "type": "STRING",
+                    "enum": options,
+                },
+            }
+        )
+        selected_option = response.text.strip()
+        if selected_option not in options:
+            # モデルが選択肢にないものを返した場合、最初の選択肢をデフォルトとする
+            selected_option = None
+        self.context += f"\n[AI]: {selected_option}"
+        return selected_option
+        
 
 if __name__ == "__main__":
     # 実行例
