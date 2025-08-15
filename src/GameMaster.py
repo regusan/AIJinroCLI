@@ -136,13 +136,13 @@ f"ただいまより人狼ゲームを開始します。"
             notyfy = f"{day}日目 - 夜" + "[bold blue]夜が来ました。各役職は行動してください。[/bold blue]"
             self.noticeBCast(notyfy, self.agents)
             self.console.print(Panel("[bold blue]夜が来ました。各役職は行動してください。[/bold blue]", title=f"{day}日目 - 夜"))
-            # TODO: 各役職の行動を実装
+
             for agent in self.livingAgents:
                 with self.console.status(f"{agent}が行動中...") as status:
-                    tmp = agent.talk(f"[ゲームマスター]{agent.name}の役職に基づいた最適な行動を200字以内で推測してください")
-                    action = agent.talk("[ゲームマスター]{agent.name}に夜間役職行動がある場合、簡潔に述べてください。")
-                    actionresult = self.brain.talk(f"夜の行動: {agent}が「{action}」と行動しました。もし、結果がある行動(例：占いの結果)なら通知してください。なければ何も応答しないで。")
-                    agent.notice("[Notice]結果のある行動の場合は結果が入ります。:"+str(actionresult))
+                    tmp = agent.talk(f"[ゲームマスター]あなた({agent.name})の役職に基づいた最適な行動を200字以内で推測してください")
+                    action = agent.talk("[ゲームマスター]あなた({agent.name})に夜間役職行動がある場合、行動内容を簡潔に述べてください。")
+                    actionresult = self.brain.talk(f"夜の行動: {agent}が「{action}」と行動しました。もし、結果がある行動(例：占いの結果)なら、その結果を通知してください。なければNoneを出力。")
+                    agent.notice("[Notice]の行動が結果のある行動の場合は結果が入ります。:"+str(actionresult))
                 
                 self.console.print(Panel(f"思考: {tmp}\n行動: {action}\n結果: {actionresult}", title=f"{agent}", style="bold blue"))
 
@@ -150,11 +150,15 @@ f"ただいまより人狼ゲームを開始します。"
             self.console.print("夜の行動が終了しました。")
 
             # 夜の行動結果を通知
-            # TODO: 実際の襲撃結果などを反映させる
             with self.console.status("夜の行動結果を集計中...") as status:
-                lastNightExplain ="[Notice]"+ self.brain.talk("[公開情報]集計した昨晩の行動による結果を簡潔に教えてください。公開する情報は、夜の行動による集計対象情報です。")
+                lastNightExplain ="[Notice]"+ self.brain.talk("[公開情報]集計した昨晩の行動による結果を簡潔に教えてください。全ユーザーに通知されるため、秘密情報は出さないでください。")
             self.publicGameState += f"\n{day}日目夜: {lastNightExplain}"
-            self.console.print(Panel(self.publicGameState, title="公開情報"))
+            生存者名一覧 = [agent.name for agent in self.livingAgents]
+            self.console.print(Panel(self.publicGameState+ f"\n生存者名一覧:{生存者名一覧}", title="公開情報"))
+
+            self._cheack_reject_agent()
+
+
 
             self.noticeBCast(lastNightExplain, self.agents)
 
@@ -163,7 +167,7 @@ f"ただいまより人狼ゲームを開始します。"
             # --- 昼のターン ---
             notyfy = "[Notice][bold yellow]昼になりました。議論を開始してください。[/bold yellow]"
             self.console.print(Panel(notyfy, title=f"{day}日目 - 昼"))
-            self.conversation(talktheme=notyfy, agents=self.agents, loopcount=1)
+            self.conversation(talktheme=notyfy, agents=self.livingAgents, loopcount=2)
 
 
             # --- 投票 ---
@@ -172,12 +176,14 @@ f"ただいまより人狼ゲームを開始します。"
             #voteResult = ""
             votedList = []
             for agent in self.livingAgents:
+                with self.console.status(f"{agent}が投票先を考察中...") as status:
+                    考察 = agent.talk(f"[ゲームマスター]{agent.name}さん、{notyfy}誰を追放するか200文字以内で考察してください。")
+                    self.console.print(f"{agent}の考察: {考察}")
                 with self.console.status(f"{agent}が投票中...") as status:
                     votedList.append(agent.select(
-                        text=f"{notyfy}\n誰に投票しますか？",
+                        text=f"{agent.name}さん、考察の結果、誰に投票しますか？",
                         options=[a.name for a in self.livingAgents]
                     ))
-                #voteResult+=f"{agent.name}:{agent.talk("[ゲームマスター]だれに投票するか教えてください。無投票も可能です。名前のみ述べてください。それ以外は出力しないで。")}"
             
             #最も投票数の多いエージェントを抽出
             voteResult = max(set(votedList), key=votedList.count)
@@ -185,6 +191,8 @@ f"ただいまより人狼ゲームを開始します。"
             notyfy =f"[Notyfy]投票結果:\n{voteResult}は追放されました" if voteResult != None else f"投票結果は無効でした。"
             self.noticeBCast(f"{notyfy}" if voteResult != None else f"投票結果は無効でした。", self.agents)
             self.console.print(Panel(voteResult, title="投票結果"))
+            
+            self._cheack_reject_agent()
             if self._check_game_end(): break
             
             day += 1
@@ -235,7 +243,13 @@ f"ただいまより人狼ゲームを開始します。"
         """
         txt= """現在、ゲームの終了条件に合致しますか？ルールは
         - 人狼陣営の勝利条件は、市民陣営のと人狼陣営を同数以下にすること。
-        - 市民陣営の勝利条件は、人狼陣営を全滅させること。"""
+        - 市民陣営の勝利条件は、人狼陣営を全滅させることです。
+        - いずれかの陣営の勝利が確定している場合、'終了'を出力し、そうでないなら'継続'を出力してください。
+        """
         with self.console.status("ゲームの終了条件を確認中...") as status:
             endTxt = self.brain.select(txt, ["終了", "継続"])
         return endTxt == "終了"
+    
+    def _cheack_reject_agent(self):
+        agentToReject =  self.brain.select("除外されるエージェントが存在するなら選択して", [agent.name for agent in self.livingAgents])
+        self.livingAgents = list(filter(lambda agent: agent.name != agentToReject, self.livingAgents))
