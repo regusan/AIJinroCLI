@@ -10,7 +10,7 @@ class GeminiBrain(Brain):
     GeminiBrainのGemini実装
     """
     models = ["gemini-2.5-flash-lite","gemini-1.5-flash-8b","gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite"]
-    def __init__(self, systemInstruction = "", modelVirsion = "gemini-2.5-flash-lite", thinking_budget=-1):
+    def __init__(self, systemInstruction = "", modelVirsion = "gemini-2.5-flash", thinking_budget=-1):
         """
         コンストラクタ
         APIキーの取得とモデルの初期化を行う
@@ -18,7 +18,8 @@ class GeminiBrain(Brain):
         self.console = Console()
         self.modelVirsion = modelVirsion
         self.thinking_budget = thinking_budget
-        self.noticedContext = ""
+
+        self.talkLog = []
         
         
         # GEMINI_API_KEYが設定されていない場合はエラーを送出
@@ -30,34 +31,39 @@ class GeminiBrain(Brain):
         self.model = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         self.config = types.GenerateContentConfig(system_instruction=systemInstruction) 
         self.chat = self.model.chats.create(model=self.modelVirsion, config=self.config)
+        
     def talk(self, text: str) -> str:
         """
         会話を行い、コンテキストを更新する
         """
-        return self.chat.send_message(f"{self.noticedContext}\n{text}").text
+        self.talkLog.append(self._make_content("user", text))
+        while True:
+            try:#TODO:なんかError500が頻発するから力わざ
+                result = self.model.models.generate_content(model=self.modelVirsion, contents=self.talkLog, config=self.config)
+                break
+            except:
+                print("API Runtime Error!!")
+                time.sleep(1)
+
+        self.talkLog.append(self._make_content("model", result.text))
+        return result.text
+        
 
     def notice(self, text: str):
         """
         通知を受け取り、コンテキストに追加する
         """
-        self.noticedContext += f"\n[Notice]: {text}"
+        self.talkLog.append(self._make_content("user", f"\n[Notice]: {text}"))
         
-        #part = types.Part(text=text)
-        #content = types.Content(parts=[part], role="user")
-        #content=content.construct(set(text))
-        #self.chat.record_history(content, self.chat.get_history(),[],True )
-        #self.talk(f"このメッセージは通知のみ行います。返信はしないでください。\n{text}")
         
     def select(self, text: str, options: list[str]) -> str:
         """
         選択肢から一つを選び、コンテキストを更新する
         """
-        history=self.chat.get_history()
-        options_str = "/".join(options)
-        context = f"{self.chat.get_history()}\n{self.noticedContext}\n[User]: {text}\n選択肢: {options_str}"
+        self.talkLog.append(self._make_content("user", text))
         response = self.model.models.generate_content(
             model=self.modelVirsion,
-            contents=context,
+            contents=self.talkLog,
             config={
                 'response_mime_type': 'text/x.enum',
                 'response_schema': {
@@ -67,9 +73,15 @@ class GeminiBrain(Brain):
             }
         )
         selected_option = response.text.strip()
+        self.talkLog.append(self._make_content("model", selected_option))
+        
         if selected_option not in options:
             selected_option = None
         return selected_option
+    @staticmethod
+    def _make_content(role: str, text: str):
+        return {"role": role, "parts": [{"text": text}]}
+        
         
 
 if __name__ == "__main__":
@@ -92,3 +104,4 @@ if __name__ == "__main__":
     history = brain.chat.get_history()
     for message in history:
         print(message)
+    print(brain.talkLog)
