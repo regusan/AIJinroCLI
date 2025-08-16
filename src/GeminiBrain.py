@@ -9,6 +9,7 @@ class GeminiBrain(Brain):
     """
     GeminiBrainのGemini実装
     """
+    
     models = ["gemini-2.5-flash-lite","gemini-1.5-flash-8b","gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite"]
     def __init__(self, systemInstruction = "", modelVirsion = "gemini-1.5-flash-8b", thinking_budget=-1):
         """
@@ -31,6 +32,9 @@ class GeminiBrain(Brain):
         self.model = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         self.config = types.GenerateContentConfig(system_instruction=systemInstruction) 
         self.chat = self.model.chats.create(model=self.modelVirsion, config=self.config)
+    
+    def UpdateSystemInstruction(self, systemInstruction: str):
+        self.config.system_instruction = systemInstruction
         
     def talk(self, text: str) -> str:
         """

@@ -19,3 +19,7 @@ class Brain(ABC):
     @abstractmethod
     def popLog(self, popCount:int=1):
         pass
+    
+    @abstractmethod
+    def UpdateSystemInstruction(self, systemInstruction: str):
+        self.config.system_instruction = systemInstruction
