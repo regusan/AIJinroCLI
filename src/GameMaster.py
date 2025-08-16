@@ -123,8 +123,8 @@ class GameMaster:
                 
             nestPanel = NestPanel(title=notyfy)
             with Live(nestPanel.parentPanel, console=self.console, refresh_per_second=0.5, transient=False, vertical_overflow="crop") as live:
-                option:list = [a.name for a in self.livingAgents]
-                option.append(None)
+                option:list[str] = [a.name for a in self.livingAgents]
+                option.append("None")
                 for agent in self.livingAgents:
                     with self.console.status(f"[{self.col.agent}]{agent}[/{self.col.agent}]が投票先を考察中...") as _:
                         考察 = agent.talk(f"{agent.name}さん、{notyfy_plain}誰を追放するか200文字以内で考察してください。")
@@ -224,7 +224,9 @@ class GameMaster:
         return endTxt == "終了"
     
     def _cheack_reject_agent(self):
-        agentToReject =  self.brain.select("除外されるエージェントが存在するなら選択して", [agent.name for agent in self.livingAgents])
+        options:List[str] = [agent.name for agent in self.livingAgents]
+        options.append("None")
+        agentToReject =  self.brain.select("除外されるエージェントが存在するなら選択して", options)
         self.livingAgents = list(filter(lambda agent: agent.name != agentToReject, self.livingAgents))
         self.brain.popLog(2)#記憶する必要はないので忘れる
         return
