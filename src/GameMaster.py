@@ -153,13 +153,12 @@ f"ただいまより人狼ゲームを開始します。"
                         action = agent.talk("[ゲームマスター]あなた({agent.name})に夜間役職行動がある場合、行動内容を簡潔に述べてください。")
                         actionresult = self.brain.talk(f"夜の行動: {agent}が「{action}」と行動しました。もし、結果がある行動(例：占いの結果)なら、その結果を通知してください。なければNoneを出力。")
                         agent.notice("[Notice]の行動が結果のある行動の場合は結果が入ります。:"+str(actionresult))
-                    newChildPanel = Panel(Group(
-                        Panel(f"{thought}", title=f"考察"), 
-                        Panel(f"{action}",title=f"{agent}の夜の行動"),
-                        Panel(f"{actionresult}",title=f"行動の結果"),
-                        ), style="bold blue")
-                    #self.console.print(Panel(f"思考: {tmp}\n行動: {action}\n結果: {actionresult}", title=f"{agent}", style="bold blue"))
-                    nestPanel.append(newChildPanel)
+                        newChildPanel = Panel(Group(
+                            Panel(f"{thought}", title=f"考察"), 
+                            Panel(f"{action}",title=f"{agent}の夜の行動"),
+                            Panel(f"{actionresult}",title=f"行動の結果"),
+                            ), style="bold blue")
+                        nestPanel.append(newChildPanel)
 
 
             self.console.print("夜の行動が終了しました。")
@@ -252,26 +251,28 @@ f"ただいまより人狼ゲームを開始します。"
         """
         #self.console.print(Panel(f"会話テーマ: {talktheme}", title="会話開始", style="bold green"))
         
-        conversation_log = f"テーマ: {talktheme}\n"
+        allTurnConversationLog = f"テーマ: {talktheme}\n"
         nestPanel = NestPanel(title=f"会話テーマ: {talktheme}")
-        with Live(nestPanel.parentPanel, console=self.console, refresh_per_second=4, transient=False) as live:
+        self.noticeBCast(talktheme, agents)
+        with Live(nestPanel.parentPanel, console=self.console, refresh_per_second=4, transient=False, vertical_overflow="visible") as live:
             for i in range(loopcount):
                 header = f"--- 議論ターン {i+1} ---"
-                self.console.print(header)
-                conversation_log += header + "\n"
+                self.noticeBCast(header, agents)
+                nestPanel.append(Rule(header))
+                allTurnConversationLog += header + "\n"
                 for agent in agents:
                     with self.console.status(f"{agent}が発言中...") as status:
-                        response =agent.talk(conversation_log)
-                    conversation_log += f"{agent.name}: {response}\n"
+                        response =agent.talk("[GM]あなたのターンです。議論を開始してください。")
+                    self.noticeBCast(f"{agent.name}:\n {response}", agents)
+                    allTurnConversationLog += f"{agent.name}: {response}\n"
                     newChildPanel = Panel(f"{agent}:\n {response}", style="bold blue")
                     nestPanel.append(newChildPanel)
-        return conversation_log
+        return allTurnConversationLog
 
     def noticeBCast(self, bcastText:str, agents:list[Agent]):
         """
         全エージェントにブロードキャストメッセージを送信する
         """
-        self.console.print(f"[bold blue]ブロードキャスト: {bcastText}[/bold blue]")
         for agent in agents:
             agent.notice(bcastText)
 
@@ -287,8 +288,11 @@ f"ただいまより人狼ゲームを開始します。"
         """
         with self.console.status("ゲームの終了条件を確認中...") as status:
             endTxt = self.brain.select(txt, ["終了", "継続"])
+        self.brain.popLog(2)#記憶する必要はないので忘れる
         return endTxt == "終了"
     
     def _cheack_reject_agent(self):
         agentToReject =  self.brain.select("除外されるエージェントが存在するなら選択して", [agent.name for agent in self.livingAgents])
         self.livingAgents = list(filter(lambda agent: agent.name != agentToReject, self.livingAgents))
+        self.brain.popLog(2)#記憶する必要はないので忘れる
+        return
