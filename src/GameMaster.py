@@ -75,7 +75,7 @@ class GameMaster:
             notyfy_plain = f"{day}日目 - 夜 夜が来ました。各役職は行動してください。"
             self.noticeBCast(notyfy, self.agents)
             nestPanel = NestPanel(title=notyfy)
-            with Live(nestPanel.parentPanel,screen=False, console=self.console, refresh_per_second=4, transient=False, vertical_overflow="crop") as live:
+            with Live(nestPanel.parentPanel,screen=False, console=self.console, auto_refresh=False, transient=False, vertical_overflow="crop") as live:
                 for agent in self.livingAgents:
                     with live.console.status(f"[{self.col.agent}]{agent}[/{self.col.agent}]が行動中...") as _:
                         thought = agent.talk(f"あなた({agent.name})の役職に基づいた最適な行動を200字以内で推測してください")
@@ -88,6 +88,7 @@ class GameMaster:
                             Panel(f"{actionresult}",title=f"[{self.col.system}]行動の結果[/{self.col.system}]"),
                             ), style=self.col.agent, title=str(agent))
                         nestPanel.append(newChildPanel)
+                        live.refresh()
 
 
             # 夜の行動結果を通知
@@ -122,7 +123,7 @@ class GameMaster:
             votedList:list[str] = []
                 
             nestPanel = NestPanel(title=notyfy)
-            with Live(nestPanel.parentPanel, console=self.console, refresh_per_second=0.5, transient=False, vertical_overflow="crop") as live:
+            with Live(nestPanel.parentPanel, console=self.console, auto_refresh=False, transient=False, vertical_overflow="crop") as live:
                 option:list[str] = [a.name for a in self.livingAgents]
                 option.append("None")
                 for agent in self.livingAgents:
@@ -139,6 +140,7 @@ class GameMaster:
                         Panel(f"[{self.col.accent}]{votedList[-1]}[/{self.col.accent}]",title=f"[{self.col.system}]投票[/{self.col.system}]")
                         ), style=self.col.agent, title=str(agent))
                     nestPanel.append(newChildPanel)
+                    live.refresh()
             
             #最も投票数の多いエージェントを抽出
             voteResult = max(set(votedList), key=votedList.count)
@@ -186,7 +188,7 @@ class GameMaster:
         allTurnConversationLog = f"[{self.col.system}]テーマ:[/{self.col.system}] {talktheme}\n"
         nestPanel = NestPanel(title=f"会話テーマ: {talktheme}")
         self.noticeBCast(talktheme, agents)
-        with Live(nestPanel.parentPanel, console=self.console, refresh_per_second=4, transient=False, vertical_overflow="crop") as live:
+        with Live(nestPanel.parentPanel, console=self.console, auto_refresh=False, transient=False, vertical_overflow="crop") as live:
             for i in range(loopcount):
                 header = f"--- [{self.col.accent}]議論ターン {i+1}[/{self.col.accent}] ---"
                 self.noticeBCast(header, agents)
@@ -199,6 +201,8 @@ class GameMaster:
                         allTurnConversationLog += f"{agent.name}: {response}\n"
                         newChildPanel = Panel(f"[{self.col.agent}]{agent}[/{self.col.agent}]:\n {response}", style=self.col.agent)
                         nestPanel.append(newChildPanel)
+                        live.refresh()
+
         return allTurnConversationLog
 
     def noticeBCast(self, bcastText:str, agents:list[Agent]):
