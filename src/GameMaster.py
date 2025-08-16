@@ -226,12 +226,25 @@ f"ただいまより人狼ゲームを開始します。"
         """
         ゲームの終了
         """
-        self.console.print(Panel("[bold green]ゲーム終了！[/bold green]", title="ゲーム終了"))
-        # TODO: 勝利陣営の判定と表示
+        gameEndNotice = "[GM][Notice]ゲームが終了しました。"
+        self.noticeBCast(gameEndNotice, self.agents)
+        self.brain.notice(gameEndNotice)
+        winTeam = self.brain.talk("勝利した陣営を教えてください")
+        winCause  = self.brain.talk("ゲーム終了の原因を(200文字以内)説明してください。")
+        goodPoint  = self.brain.talk("本ゲームの見どころを教えてください。例えば、ゲームチェンジとなった局面などです。")
+        self.console.print(Panel(Group(
+            Panel(winTeam, title="勝利陣営"), 
+            Panel(winCause, title="勝利原因"),
+            Panel(goodPoint, title="見どころ")
+            ), title="ゲーム終了"))
+        
+        self.noticeBCast(f"[GM][Notice]勝利陣営:{winTeam}", self.agents)
+        self.noticeBCast(f"[GM][Notice]勝利原因:{winCause}", self.agents)
+        self.noticeBCast(f"[GM][Notice]見どころ:{goodPoint}", self.agents)
         
         self.console.print("感想戦を開始します。")
-        # TODO: 感想戦(conversation)を実装
-
+        nestPanel = NestPanel(title="感想戦")
+        self.conversation(talktheme="感想や見どころ、惜しかったところを200字以内で述べてください。", agents=self.agents, loopcount=2)
 
     def conversation(self, talktheme: str, agents: list[Agent], loopcount: int) -> str:
         """
