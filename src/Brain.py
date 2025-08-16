@@ -11,7 +11,11 @@ class Brain(ABC):
     @abstractmethod
     def talk(self, text: str) -> str:
         pass
+
     @abstractmethod
     def select(self, text: str, options: list[str]) -> str:
         pass
-        
+    
+    @abstractmethod
+    def popLog(self, popCount:int=1):
+        pass

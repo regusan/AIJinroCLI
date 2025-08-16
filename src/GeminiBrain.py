@@ -10,7 +10,7 @@ class GeminiBrain(Brain):
     GeminiBrainのGemini実装
     """
     models = ["gemini-2.5-flash-lite","gemini-1.5-flash-8b","gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite"]
-    def __init__(self, systemInstruction = "", modelVirsion = "gemini-2.5-flash", thinking_budget=-1):
+    def __init__(self, systemInstruction = "", modelVirsion = "gemini-1.5-flash-8b", thinking_budget=-1):
         """
         コンストラクタ
         APIキーの取得とモデルの初期化を行う
@@ -78,6 +78,13 @@ class GeminiBrain(Brain):
         if selected_option not in options:
             selected_option = None
         return selected_option
+    def popLog(self,popCount:int=1):
+        for _ in range(popCount):
+            if self.talkLog:
+                self.talkLog.pop()
+                
+
+
     @staticmethod
     def _make_content(role: str, text: str):
         return {"role": role, "parts": [{"text": text}]}
