@@ -27,8 +27,6 @@ class GeminiBrain(Brain):
         if "GEMINI_API_KEY" not in os.environ:
             raise ValueError("GEMINI_API_KEY is not set in environment variables.")
         
-        #genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-        #self.model = genai.GenerativeModel(model, config=types.GenerateContentConfig(thinking_config=z.ThinkingConfig(thinking_budget=0)))
         self.model = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         self.config = types.GenerateContentConfig(system_instruction=systemInstruction) 
         self.chat = self.model.chats.create(model=self.modelVirsion, config=self.config)
@@ -49,21 +47,15 @@ class GeminiBrain(Brain):
                 print("API Runtime Error!!")
                 time.sleep(1)
 
-        self.talkLog.append(self._make_content("model", result.text))
-        return result.text
+        self.talkLog.append(self._make_content("model", str(result.text)))
+        return str(result.text)
         
 
     def notice(self, text: str):
-        """
-        通知を受け取り、コンテキストに追加する
-        """
         self.talkLog.append(self._make_content("user", f"\n[Notice]: {text}"))
         
         
     def select(self, text: str, options: list[str]) -> str:
-        """
-        選択肢から一つを選び、コンテキストを更新する
-        """
         self.talkLog.append(self._make_content("user", text))
         response = self.model.models.generate_content(
             model=self.modelVirsion,
@@ -80,18 +72,20 @@ class GeminiBrain(Brain):
         self.talkLog.append(self._make_content("model", selected_option))
         
         if selected_option not in options:
-            selected_option = None
+            selected_option = "None"
         return selected_option
     def popLog(self,popCount:int=1):
         for _ in range(popCount):
             if self.talkLog:
                 self.talkLog.pop()
-                
 
+    def UpdateSystemInstruction(self, systemInstruction: str):
+        self.config.system_instruction = systemInstruction
 
     @staticmethod
     def _make_content(role: str, text: str):
         return {"role": role, "parts": [{"text": text}]}
+    
         
         
 
