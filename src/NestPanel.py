@@ -1,15 +1,11 @@
-
-from rich.console import Console
-from rich.live import Live
 from rich.panel import Panel
 from rich.console import Group
-from rich.rule import Rule
 
 class NestPanel:
-    def __init__(self, title):
-        self.childPanels = []
-        self.panelGroupe = Group(*self.childPanels) 
-        self.parentPanel = Panel(
+    def __init__(self, title:str):
+        self.childPanels:list[Panel] = []
+        self.panelGroupe:Group = Group(*self.childPanels) 
+        self.parentPanel:Panel = Panel(
             self.panelGroupe,
             title=title,
             border_style="blue",

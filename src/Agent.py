@@ -1,15 +1,15 @@
 from Brain import Brain
-
+from Role import Role
 class Agent:
     """
     ロールを演じるエージェントのクラス
     """
-    def __init__(self, name: str, brain: Brain, persona: str = ""):
+    def __init__(self, name: str, brain: Brain, role:Role, persona: str = ""):
         """
         コンストラクタ
         """
         self.name: str = name
-        self.role: str = ""
+        self.role: Role = role
         self.persona: str = persona
         self.brain: Brain = brain
     

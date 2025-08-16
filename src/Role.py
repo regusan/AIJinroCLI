@@ -12,3 +12,6 @@ class Role:
         """
         self.name: str = name
         self.prompt: str = prompt
+
+    def __str__(self):
+        return self.name
