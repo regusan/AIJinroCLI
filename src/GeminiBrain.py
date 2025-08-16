@@ -11,7 +11,7 @@ class GeminiBrain(Brain):
     """
     
     models = ["gemini-2.5-flash-lite","gemini-1.5-flash-8b","gemini-2.5-pro","gemini-2.5-flash","gemini-2.5-flash-lite"]
-    def __init__(self, systemInstruction = "", modelVirsion = "gemini-1.5-flash-8b", thinking_budget=-1):
+    def __init__(self, systemInstruction = "", modelVirsion = "gemini-2.5-flash-lite", thinking_budget=-1):
         """
         コンストラクタ
         APIキーの取得とモデルの初期化を行う
@@ -28,9 +28,27 @@ class GeminiBrain(Brain):
             raise ValueError("GEMINI_API_KEY is not set in environment variables.")
         
         self.model = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-        self.config = types.GenerateContentConfig(system_instruction=systemInstruction) 
-        self.chat = self.model.chats.create(model=self.modelVirsion, config=self.config)
-    
+
+        create_safety_setting = lambda category: types.SafetySetting(
+            category=category,
+            threshold=types.HarmBlockThreshold.BLOCK_NONE
+        )
+
+        self.config = types.GenerateContentConfig(
+            system_instruction=systemInstruction,
+            safety_settings=[#制限を無効化
+                create_safety_setting(types.HarmCategory.HARM_CATEGORY_CIVIC_INTEGRITY),
+                create_safety_setting(types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT),
+                create_safety_setting(types.HarmCategory.HARM_CATEGORY_HARASSMENT),
+                create_safety_setting(types.HarmCategory.HARM_CATEGORY_HATE_SPEECH),
+                create_safety_setting(types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT),
+                #create_safety_setting(types.HarmCategory.HARM_CATEGORY_UNSPECIFIED),#なんかこれ設定すると全部ブロックする
+                #create_safety_setting(types.HarmCategory.HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT),
+                #create_safety_setting(types.HarmCategory.HARM_CATEGORY_IMAGE_HARASSMENT),
+                #create_safety_setting(types.HarmCategory.HARM_CATEGORY_IMAGE_HATE),
+                #create_safety_setting(types.HarmCategory.HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT),
+            ]
+            ,)
     def UpdateSystemInstruction(self, systemInstruction: str):
         self.config.system_instruction = systemInstruction
         
@@ -79,9 +97,6 @@ class GeminiBrain(Brain):
             if self.talkLog:
                 self.talkLog.pop()
 
-    def UpdateSystemInstruction(self, systemInstruction: str):
-        self.config.system_instruction = systemInstruction
-
     @staticmethod
     def _make_content(role: str, text: str):
         return {"role": role, "parts": [{"text": text}]}
@@ -106,7 +121,4 @@ if __name__ == "__main__":
     response2 = brain.talk("考察を教えてください")
     elapsed= time.time()-start
     print(f"AIの応答 {elapsed:.2f}s: {response2}")
-    history = brain.chat.get_history()
-    for message in history:
-        print(message)
     print(brain.talkLog)
