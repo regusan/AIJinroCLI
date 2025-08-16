@@ -146,7 +146,7 @@ f"ただいまより人狼ゲームを開始します。"
             self.noticeBCast(notyfy, self.agents)
             self.console.print(Panel("[bold blue]夜が来ました。各役職は行動してください。[/bold blue]", title=f"{day}日目 - 夜"))
             nestPanel = NestPanel(title=notyfy)
-            with Live(nestPanel.parentPanel, console=self.console, refresh_per_second=4, transient=False) as live:
+            with Live(nestPanel.parentPanel, console=self.console, refresh_per_second=4, transient=False, vertical_overflow="visible") as live:
                 for agent in self.livingAgents:
                     with self.console.status(f"{agent}が行動中...") as status:
                         thought = agent.talk(f"[ゲームマスター]あなた({agent.name})の役職に基づいた最適な行動を200字以内で推測してください")
@@ -192,7 +192,7 @@ f"ただいまより人狼ゲームを開始します。"
             votedList = []
                 
             nestPanel = NestPanel(title=notyfy)
-            with Live(nestPanel.parentPanel, console=self.console, refresh_per_second=0.5, transient=False) as live:
+            with Live(nestPanel.parentPanel, console=self.console, refresh_per_second=0.5, transient=False, vertical_overflow="visible") as live:
                 for agent in self.livingAgents:
                     with self.console.status(f"{agent}が投票先を考察中...") as status:
                         考察 = agent.talk(f"[ゲームマスター]{agent.name}さん、{notyfy}誰を追放するか200文字以内で考察してください。")
