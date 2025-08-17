@@ -10,6 +10,7 @@ class UserBrain(Brain):
         コンストラクタ
         rich.console.Consoleを初期化します。
         """
+        self.modelVirsion = "User"
         self.console = Console()
         self.talkLog = []
         if systemInstruction:
@@ -25,7 +26,7 @@ class UserBrain(Brain):
         Returns:
             str: ユーザーが入力した文字列。
         """
-        self.console.print(f"[bold green]>{text}[/bold green]", end="")
+        self.console.print(f"[bold green]>{text}[/bold green]\n>>>", end="")
         response = self.console.input()
         self.talkLog.append({"role": "user", "parts": [{"text": text}]})
         self.talkLog.append({"role": "model", "parts": [{"text": response}]})
@@ -51,13 +52,13 @@ class UserBrain(Brain):
         Returns:
             str: ユーザーが選択した項目。
         """
-        self.console.print(f"[bold green]>{text}[/bold green]")
+        self.console.print(f"[bold green]>{text}\n>>>[/bold green]")
         for i, option in enumerate(options):
             self.console.print(f"  {i+1}: {option}")
         
         while True:
             try:
-                choice_str = self.console.input(f"あなたの選択を番号で入力してください (1-{len(options)}): ")
+                choice_str = self.console.input(f"あなたの選択を番号で入力してください (1-{len(options)}):\n<<<")
                 choice_index = int(choice_str) - 1
                 if 0 <= choice_index < len(options):
                     selected_option = options[choice_index]

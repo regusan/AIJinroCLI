@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 
 class Brain(ABC):
+    def __init__(self) -> None:
+        super().__init__()
+        self.modelVirsion:str = "NULL"
     """
     AIモデルごとに異なる処理を記述する抽象クラス
     """
